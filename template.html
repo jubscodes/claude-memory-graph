@@ -386,19 +386,19 @@ const THEMES = [
   {id:'cyber', label:'Cyber', note:'green phosphor terminal', bg:'repeating-linear-gradient(0deg,rgba(0,0,0,.35) 0 1px,transparent 1px 3px),#021a0d', dots:['#00cc6a','#7dffb2','#2fa866'], glow:true},
 ];
 // Omarchy users: build.py read the active Omarchy theme; register it as a theme and make it the default
-if (DATA.omarchy) {
-  const clean = v => String(v).replace(/[;{}<>]/g, '');
-  const st = document.createElement('style');
-  st.textContent = ':root[data-theme="omarchy"]{' +
-    Object.entries(DATA.omarchy.tokens).map(([k, v]) => `${clean(k)}:${clean(v)}`).join(';') + '}';
-  document.head.appendChild(st);
-  THEMES.splice(1, 0, {id: 'omarchy', label: 'Omarchy', note: DATA.omarchy.name,
-    bg: DATA.omarchy.preview.bg, dots: DATA.omarchy.preview.dots});
-}
+const omStyle = document.createElement('style');
+function omarchyCss(o){ const clean = v => String(v).replace(/[;{}<>]/g, '');
+  omStyle.textContent = ':root[data-theme="omarchy"]{' +
+    Object.entries(o.tokens).map(([k, v]) => `${clean(k)}:${clean(v)}`).join(';') + '}';
+  const t = {id: 'omarchy', label: 'Omarchy', note: o.name, bg: clean(o.preview.bg), dots: o.preview.dots.map(clean)};
+  const i = THEMES.findIndex(x => x.id === 'omarchy');
+  if (i < 0) THEMES.splice(1, 0, t); else THEMES[i] = t; }
+if (DATA.omarchy) { document.head.appendChild(omStyle); omarchyCss(DATA.omarchy); }
 let theme = '';
-$('#themes').innerHTML = THEMES.map(t => `<button role="menuitemradio" data-theme-id="${t.id}" aria-checked="false">
+const renderThemeMenu = () => $('#themes').innerHTML = THEMES.map(t => `<button role="menuitemradio" data-theme-id="${t.id}" aria-checked="false">
   <span class="prev" style="background:${t.bg}">${t.dots.map(c => `<i style="background:${c};${t.glow ? `box-shadow:0 0 6px ${c}` : ''}"></i>`).join('')}</span>
   <span>${esc(t.label)}${t.note ? `<br><small style="color:var(--muted)">${esc(t.note)}</small>` : ''}</span></button>`).join('');
+renderThemeMenu();
 function setTheme(t){ const d = document.documentElement; theme = t;
   if (t) d.dataset.theme = t; else delete d.dataset.theme;
   $('#tname').textContent = THEMES.find(x => x.id === t).label;
@@ -657,6 +657,21 @@ new ResizeObserver(() => document.documentElement.style.setProperty('--hdr', $('
 // null = never chosen (use Omarchy when present); '' = the viewer explicitly picked Auto
 let saved = null; try { saved = localStorage.getItem('cmg-theme'); } catch {}
 setTheme(saved !== null && THEMES.some(t => t.id === saved) ? saved : DATA.omarchy ? 'omarchy' : '');
+// Live Omarchy theme: build.py writes a sidecar script beside this file and a theme-set hook rewrites it.
+// Re-run it every 2s (a local file, no network) and re-theme when the tokens changed.
+if (DATA.omarchy && DATA.omarchy.sidecar && location.protocol === 'file:') {
+  let last = JSON.stringify({...DATA.omarchy, sidecar: undefined});
+  window.__cmgOmarchy = o => { const now = JSON.stringify(o);
+    if (now === last || !o || !o.tokens || !o.preview) return;
+    last = now; const open = !$('#themes').hidden;
+    omarchyCss(o); renderThemeMenu(); setTheme(theme); if (open) menu(true); };
+  const poll = () => { if (document.hidden) return;
+    const s = document.createElement('script');
+    s.src = encodeURIComponent(DATA.omarchy.sidecar) + '?' + Date.now();
+    s.onload = s.onerror = () => s.remove(); document.head.appendChild(s); };
+  poll(); setInterval(poll, 2000);
+  document.addEventListener('visibilitychange', poll);
+}
 addEventListener('resize', resize); resize();
 // Warm-up: run the chaotic first part of the layout off-screen, then show only a calm final settle.
 // The step budget shrinks for big graphs (each step is O(n²)) so the page never stalls.

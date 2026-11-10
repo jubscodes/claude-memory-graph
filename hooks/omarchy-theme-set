@@ -1,0 +1,10 @@
+#!/bin/bash
+# Omarchy theme-set hook: re-theme an open Claude memory graph when the Omarchy theme changes.
+# Install with: omarchy hook install theme-set hooks/omarchy-theme-set
+# It rewrites only the small theme sidecar beside the graph; the open page picks it up within ~2s.
+GRAPH="${CLAUDE_MEMORY_GRAPH:-$HOME/claude-memory-graph.html}"
+BUILD="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/claude-memory-graph/build.py"
+
+if [[ -f $GRAPH && -f $BUILD ]]; then
+  python3 -I "$BUILD" --theme-only "$GRAPH" >/dev/null 2>&1 || true
+fi

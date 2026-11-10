@@ -76,6 +76,18 @@ class BuildTest(unittest.TestCase):
         self.assertEqual((th["tokens"]["--bg"], th["tokens"]["--focus"]), ("#1a1b26", "#7aa2f7"))
         self.assertIsNone(build.omarchy_theme(self.root / "nobody"))
 
+    def test_theme_sidecar(self):
+        out = self.root / "graph.html"
+        theme = {"name": "nord", "tokens": {"--bg": "#2e3440"}, "preview": {"bg": "#2e3440", "dots": []},
+                 "sidecar": "stale.js"}
+        side = build.write_sidecar(out, theme)
+        self.assertEqual(side.name, "graph.theme.js")
+        js = side.read_text()
+        self.assertTrue(js.startswith("window.__cmgOmarchy&&window.__cmgOmarchy({"))
+        self.assertIn('"--bg": "#2e3440"', js)
+        self.assertNotIn("sidecar", js)
+        self.assertFalse((self.root / "graph.theme.js.tmp").exists())
+
     def test_fonts_embedded_and_optional(self):
         css = build.font_css()
         self.assertEqual(css.count("@font-face"), len(build.FONTS))
