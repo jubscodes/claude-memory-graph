@@ -58,7 +58,7 @@ Requires Python 3.8+, standard library only. Tested on macOS and Linux (Omarchy)
 
 Screenshots use the fictional demo set: a developer who names every project after a show.
 
-**On [Omarchy](https://omarchy.org)?** The builder reads your active Omarchy theme (`colors.toml`, or `alacritty.toml` on older themes) and adds a matching **Omarchy** theme, which the page uses by default. If you switch Omarchy themes, rebuild the graph to match.
+**On [Omarchy](https://omarchy.org)?** The builder reads your active Omarchy theme (`colors.toml`, or `alacritty.toml` on older themes) and adds a matching **Omarchy** theme, which the page uses by default. To have an open graph follow theme switches live, install the bundled hook once: `omarchy hook install theme-set ~/.claude/skills/claude-memory-graph/hooks/omarchy-theme-set`. Without it, rebuild the graph after switching themes.
 
 ## Privacy
 

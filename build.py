@@ -206,6 +206,17 @@ def build(root, home, bodies=True):
             "built": datetime.date.today().isoformat(), "omarchy": omarchy_theme(home)}
 
 
+def write_sidecar(out, theme):
+    """Write <graph>.theme.js beside the graph. The open page re-reads it every couple of seconds, so a
+    theme-set hook that rewrites it (--theme-only) re-themes the page live, without a rebuild or reload."""
+    side = out.with_name(out.stem + ".theme.js")
+    theme = {k: v for k, v in theme.items() if k != "sidecar"}
+    tmp = side.with_name(side.name + ".tmp")
+    tmp.write_text("window.__cmgOmarchy&&window.__cmgOmarchy(%s);\n" % json.dumps(theme), encoding="utf-8")
+    os.replace(tmp, side)  # atomic, so the page never reads a half-written file
+    return side
+
+
 def main():
     config = pathlib.Path(os.environ.get("CLAUDE_CONFIG_DIR", pathlib.Path.home() / ".claude"))
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -214,12 +225,23 @@ def main():
     ap.add_argument("--home", default=str(pathlib.Path.home()), help="home dir used to shorten labels")
     ap.add_argument("--no-bodies", action="store_true",
                     help="leave out memory text (names and descriptions only), e.g. for a graph you'll share")
+    ap.add_argument("--theme-only", action="store_true",
+                    help="only rewrite the Omarchy theme sidecar next to an existing graph (for a theme-set hook)")
     a = ap.parse_args()
+
+    if a.theme_only:
+        out = pathlib.Path(a.out).expanduser()
+        theme = omarchy_theme(pathlib.Path(a.home).expanduser())
+        if theme and out.exists():
+            print(f"Omarchy theme '{theme['name']}' -> {write_sidecar(out, theme)}")
+        return
 
     data = build(pathlib.Path(a.root).expanduser(), pathlib.Path(a.home).expanduser(), bodies=not a.no_bodies)
     out = pathlib.Path(a.out).expanduser()
     out.parent.mkdir(parents=True, exist_ok=True)
     # '</' would end the inline <script> early if a description contained '</script>'
+    if data["omarchy"]:
+        data["omarchy"]["sidecar"] = write_sidecar(out, data["omarchy"]).name
     payload = json.dumps(data).replace("</", "<\\/")
     template = (HERE / "template.html").read_text(encoding="utf-8")
     page = template.replace("/*__FONTS__*/", font_css()).replace("/*__DATA__*/null", payload)
